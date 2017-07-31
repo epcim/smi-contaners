@@ -1,0 +1,192 @@
+version: "3.1"
+
+# TODO: Implement network segregation and overlay networks. Need's service registry.
+#networks:
+  #public:  # to exposer app's UI
+  #control:  # internal for CIS for API calls
+  #collect:  # where the workload runs and strems
+
+# TODO: Implement external volume driver (like netapp).
+# Volume should be controlled by netapp driver
+#volumes:
+#  data:
+#    driver: 
+
+
+services:
+  # Fluentd, as log aggregator
+  fluent:
+    image: ${DOCKER_SWARM_HOST01:-mon01}.${DOCKER_SWARM_DOMAIN:-virtual-mcp11-ovs.local}:15000/lab-fluentd:latest
+    environment:
+      # defaults
+      - FLUENTD_CONF=fluentd_poc.conf
+      - DOCKER_FLUENTD_REPLICAS=1
+      #- FLUENTD_OPT=
+      #- FLUENTD_UID=
+    env_file:
+     # override ENV varibles used in this script in ./*.env.
+     - poc.env
+    volumes:
+      - ${PWD}/fluentd/etc:/fluentd/etc #:ro
+      - ${DOCKER_FLUENTD_LOG_PAHT:-/fluentd/log}:/fluentd/log
+    deploy:
+      replicas: ${DOCKER_FLUENTD_REPLICAS:-2}
+    ports:
+      - ${DOCKER_FLUENTD_PORT:-24224}:24224/tcp
+      - ${DOCKER_FLUENTD_PORT:-24224}:24224/udp
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    #networks:
+    #  - control
+    #  - collect
+    #logging:
+    #  driver: fluentd
+    #  options:
+    #    fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+
+  #elastic:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.5.0
+    environment:
+      - bootstrap_memory_lock=true
+      - xpack.security.enabled=false
+      - discovery.type=zen
+      - discovery.zen.minimum_master_nodes=1
+      - http.host=0.0.0.0 
+      - network.publish_host=mon01
+      - transport.host=0.0.0.0 
+      - "ES_JAVA_OPTS: -Xms20g -Xmx20g"
+    env_file:
+     - ./poc.env 
+    depends_on:
+      - fluent 
+    volumes:
+     - ${PWD}/elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+     - ${DOCKER_ELASTIC_DATA_DIR:-/elasticsearch_local}:/usr/share/elasticsearch/data
+    deploy: 
+      replicas: 3 
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9200:9200
+      - 9300:9300
+    # FIXME: swarm hosts need's to be resolved within ES container.
+    extra_hosts:
+      - "${DOCKER_SWARM_HOST01:-mon01}:${DOCKER_SWARM_HOST01_ADDRESS:-172.16.10.107}"
+      - "${DOCKER_SWARM_HOST02:-mon02}:${DOCKER_SWARM_HOST02_ADDRESS:-172.16.10.108}"
+      - "${DOCKER_SWARM_HOST03:-mon03}:${DOCKER_SWARM_HOST03_ADDRESS:-172.16.10.109}"
+    # meet host prereq: https://docs.fluentd.org/v0.12/articles/before-install
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+    #networks:
+    #  - control
+    #  - collect
+
+  curator:
+    image: bobrik/curator 
+    #env_file:
+    # - ./poc.env 
+    depends_on:
+      - fluent
+      - elasticsearch
+    volumes:
+     - ${PWD}/curator:/etc/curator:ro
+    deploy:
+      replicas: 1
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+    extra_hosts:
+      - "${DOCKER_SWARM_HOST01:-mon01}:${DOCKER_SWARM_HOST01_ADDRESS:-172.16.10.107}"
+      - "${DOCKER_SWARM_HOST02:-mon02}:${DOCKER_SWARM_HOST02_ADDRESS:-172.16.10.108}"
+      - "${DOCKER_SWARM_HOST03:-mon03}:${DOCKER_SWARM_HOST03_ADDRESS:-172.16.10.109}"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:5.5.0
+    depends_on:
+      - fluentd
+      - elasticsearch
+    env_file:
+      - poc.env
+    deploy:
+      replicas: 2 
+    environment:
+      - SERVER_NAME=kibana.lab.lab42
+      - XPACK_MONITORING_ENABLED=false
+      #- ELASTICSEARCH_URL=http://172.18.0.4:9200 
+    ports:
+      - 5601:5601
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+    #networks:
+    #  - public
+    #  - control
+    #  - collect
+  
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - fluentd
+    links:
+      - fluentd:fluent
+    volumes:
+      - /srv/volumes/grafana:/var/lib/grafana
+    env_file:
+     - poc.env
+    environment: {}
+    ports:
+      - 3000:3000
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+    #networks:
+    # - public
+    # - control
+
+  influxdb:
+    image: influxdb
+    depends_on:
+      - fluentd
+    links:
+      - fluentd:fluent
+    volumes:
+      - ${PWD}/influxdb/influxdb.conf:/etc/influxdb/influxdb.conf:ro
+    env_file:
+     - poc.env
+    deploy:
+      replicas: 1
+    environment:
+      - INFLUXDB_GRAPHITE_ENABLED=true
+      - INFLUXDB_ADMIN_ENABLED=true
+    ports:
+      - 8087/tcp
+      - 8087/udp
+      - 2003/tcp
+      - 8083/tcp
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+    #networks:
+    #  - control
+    #  - public
+
+#:vim sts=2 ts=2 # :vim
