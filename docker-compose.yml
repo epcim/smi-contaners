@@ -30,7 +30,7 @@ services:
       - ${PWD}/fluentd/etc:/fluentd/etc #:ro
       - ${DOCKER_FLUENTD_LOG_PAHT:-/fluentd/log}:/fluentd/log
     deploy:
-      replicas: ${DOCKER_FLUENTD_REPLICAS:-2}
+      replicas: 2
     ports:
       - ${DOCKER_FLUENTD_PORT:-24224}:24224/tcp
       - ${DOCKER_FLUENTD_PORT:-24224}:24224/udp
@@ -66,7 +66,7 @@ services:
      - ${PWD}/elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
      - ${DOCKER_ELASTIC_DATA_DIR:-/elasticsearch_local}:/usr/share/elasticsearch/data
     deploy: 
-      replicas: 3 
+      replicas: 1 
     ulimits:
       memlock:
         soft: -1

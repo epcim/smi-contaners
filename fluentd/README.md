@@ -93,3 +93,27 @@ In the main directory of repo is a docker-compose file used to deploy whole CIS 
 > "--build-arg=no_proxy=$NO_PROXY" \
 > -t lab-fluentd:latest ./
 
+
+### upload to regisry
+
+Prereq:
+> {
+>   "log-opts": {
+>     "max-size": "50m"
+>   },
+>   "insecure-registries": [
+>     "172.16.10.253:5000",
+>     "172.16.10.253:15000",                
+>     "172.16.10.107:15000",                
+>     "mon01.virtual-mcp11-ovs.local:15000",
+>     "mon01.virtual-mcp11-ovs.local:5000"
+>   ],
+>   "log-driver": "json-file"
+> }
+> systemctl restart docker 
+
+tag and push:
+> docker tag 0a6f1b2ca9a2 mon01.virtual-mcp11-ovs.local:15000/lab-fluentd:latest 
+> docker push mon01.virtual-mcp11-ovs.local:15000/lab-fluentd:latest
+
+  
