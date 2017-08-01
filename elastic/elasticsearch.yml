@@ -67,7 +67,7 @@ cluster.name: lab-monitoring-cluster
 #
 #discovery.zen.ping.unicast.hosts: ["172.16.10.107", "elasticsearch", "elasticsearch-1"]
 #discovery.zen.ping.unicast.hosts: ["mon01" , "elasticsearch"] #, "elasticsearch-1"]
-discovery.zen.ping.unicast.hosts: ["mon01" , "mon02", "mon03"] #, "elasticsearch-1"]
+#discovery.zen.ping.unicast.hosts: ["elasticsearch_node1" , "elasticsearch_node2", "elasticsearch_node3"] #, "elasticsearch-1"]
 #discovery.zen.ping.unicast.hosts: ["elasticsearch-1"]
 #### mon01
 
