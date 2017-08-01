@@ -169,14 +169,16 @@ services:
       - default_public
 
   curator:
-    image: bobrik/curator 
+    image: visity/elasticsearch-curator 
     #env_file:
     # - ./poc.env 
     depends_on:
       - fluent
       - elasticsearch
-    volumes:
-     - ${PWD}/curator:/etc/curator:ro
+    environment:
+      - INTERVAL_IN_HOURS=24
+      - OLDER_THAN_IN_DAYS="20"
+      - ELASTICSEARCH_HOST=elastic_proxy
     deploy:
       replicas: 1
     logging:
@@ -184,10 +186,8 @@ services:
       options:
         fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
         tag: docker.{{.ID}}
-    extra_hosts:
-      - "${DOCKER_SWARM_HOST01:-mon01}:${DOCKER_SWARM_HOST01_ADDRESS:-172.16.10.107}"
-      - "${DOCKER_SWARM_HOST02:-mon02}:${DOCKER_SWARM_HOST02_ADDRESS:-172.16.10.108}"
-      - "${DOCKER_SWARM_HOST03:-mon03}:${DOCKER_SWARM_HOST03_ADDRESS:-172.16.10.109}"
+    networks:
+       - elastic_grid
 
   kibana:
     image: docker.elastic.co/kibana/kibana:5.5.0
@@ -212,14 +212,13 @@ services:
     networks:
       - default_public
       - elastic_grid
-    #  - collect
   
   grafana:
     image: grafana/grafana
     depends_on:
       - fluentd
     volumes:
-      - /srv/volumes/grafana:/var/lib/grafana
+      - ${PWD}/grafana/lib:/var/lib/grafana
     env_file:
      - poc.env
     environment: {}
@@ -230,9 +229,9 @@ services:
       options:
         fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
         tag: docker.{{.ID}}
-    #networks:
-    # - public
-    # - control
+    networks:
+     - influxdb_grid
+     - default_public
 
   influxdb:
     image: influxdb
@@ -257,12 +256,14 @@ services:
       options:
         fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
         tag: docker.{{.ID}}
-    #networks:
-    #  - control
-    #  - public
+    networks:
+      - influxdb_grid
+      - default_public 
 
 networks:
   elastic_grid:
+    driver: overlay
+  influxdb_grid:
     driver: overlay
   default_public:
 
