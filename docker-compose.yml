@@ -169,16 +169,15 @@ services:
       - default_public
 
   curator:
-    image: visity/elasticsearch-curator 
+    image: bobrik/curator
     #env_file:
     # - ./poc.env 
     depends_on:
       - fluent
       - elasticsearch
-    environment:
-      - INTERVAL_IN_HOURS=24
-      - OLDER_THAN_IN_DAYS="20"
-      - ELASTICSEARCH_HOST=elastic_proxy
+    volumes:
+      - ${PWD}/curator/curator.yml:/curator.yml
+      - ${PWD}/curator/action.yml:/action.yml    
     deploy:
       replicas: 1
     logging:

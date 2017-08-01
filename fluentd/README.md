@@ -1,9 +1,22 @@
 
 
 # Client configuration
-Install Fluentbit on a client
 
-## from rpm repo, on suse
+## Install Fluentd on a client
+
+* td-agent (packaged by treasure data, enterprise support)
+* fluentd from gem/pkg (opensource)
+
+Steps for td-agent:
+
+        # for ubuntu 
+	curl -L https://toolbelt.treasuredata.com/sh/install-ubuntu-xenial-td-agent2.sh | sh 
+
+	td-agent-gem install fluent-plugin-elasticsearch
+
+## Install Fluentbit on a client
+
+from rpm repo, on suse:
 
 > cat <<-EOF > /etc/zypp/repos.d/td-agent-bit.repo
 > 	[td-agent-bit]
@@ -20,9 +33,9 @@ Install Fluentbit on a client
 > 
 > zypper install -y td-agent-bit
 
-## configure
 
 Under /etc/td-agent-bit/*.conf
+configure:
 
 > [INPUT]
 >     Name cpu
