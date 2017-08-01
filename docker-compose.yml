@@ -260,6 +260,27 @@ services:
       - influxdb_grid
       - default_public 
 
+  docker_visualizer:
+    image: dockersamples/visualizer
+    depends_on:
+      - fluentd
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+     - poc.env
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+    ports:
+      - 8099:8080
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
+
 networks:
   elastic_grid:
     driver: overlay
