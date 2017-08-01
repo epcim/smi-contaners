@@ -175,16 +175,18 @@ services:
     depends_on:
       - fluent
       - elasticsearch
+    environment:
+      - action_file=${PWD}/curator/action.yml
     volumes:
       - ${PWD}/curator/curator.yml:/curator.yml
       - ${PWD}/curator/action.yml:/action.yml    
     deploy:
       replicas: 1
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
-        tag: docker.{{.ID}}
+    #logging:
+    #  driver: fluentd
+    #  options:
+    #    fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+    #    tag: docker.{{.ID}}
     networks:
        - elastic_grid
 
@@ -279,6 +281,71 @@ services:
       options:
         fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
         tag: docker.{{.ID}}
+
+
+
+  consul:
+    image: "consul:0.8.0"
+    container_name: consul
+    ##image:  gliderlabs/consul-server:latest
+    environment:
+      - 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}'
+    #command: "-server -bootstrap -bootstrap-expect=1"
+    ##command: "-advertise=${MYHOST} -server -bootstrap"
+    #hostname: ${MYHOST}
+    #volumes:
+    #  - ${PWD}/consul/config:/consul/config
+    #entrypoint: consul agent -server -bind=127.0.0.1 -config-dir=/consul/config -data-dir=/consul/data
+    #entrypoint: consul agent -server -config-dir=/consul/config -data-dir=/consul/data
+    #entrypoint: consul agent -server -config-dir=/consul/config -data-dir=/consul/data
+    ##command:
+    ##   - /usr/local/bin/docker-entrypoint.sh
+    ##   - agent
+    ports:
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:8600/udp"
+      #- "8301-8302/udp"
+      #- "8300-8300/tcp"
+    labels:
+      - SERVICE_IGNORE # Tell Registrator to ignore this container
+
+  registrator:
+    #image: gliderlabs/registrator:latest
+    image: gliderlabs/registrator:v7
+    #command: ['consul://mon01:8500']
+    #command: ['consul://consul:8500']
+    #command: "-ip ${DOCKER_SWARM_HOST01:-mon01} consul://${DOCKER_SWARM_HOST01:-mon01}:8500"
+    #command: "-ip ${MYHOST} consul://${MYHOST}:8500"
+    #entrypoint: /bin/registrator -cleanup -resync 30 -internal consul://${DOCKER_SWARM_HOST01:-mon01}:8500
+    entrypoint: /bin/registrator -cleanup -resync 30 consul://${DOCKER_SWARM_HOST01:-mon01}:8500
+    links:
+      - consul:consul
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    depends_on:
+      - consul
+    deploy:
+      replicas: 3
+    extra_hosts: # FIXME
+      - "${DOCKER_SWARM_HOST01:-mon01}:${DOCKER_SWARM_HOST01_ADDRESS:-172.16.10.107}" 
+      - "${DOCKER_SWARM_HOST02:-mon02}:${DOCKER_SWARM_HOST02_ADDRESS:-172.16.10.108}" 
+      - "${DOCKER_SWARM_HOST03:-mon03}:${DOCKER_SWARM_HOST03_ADDRESS:-172.16.10.109}" 
+
+
+
+#  linkerd:
+#    image: buoyantio/linkerd:1.1.2
+#    command: ['/config.yaml']
+#    links:
+#      - consul
+#    volumes:
+#      - ./linkerd.yml:/config.yaml
+#    ports:
+#      - 9990:9990
+#      - 4140:4140
+#    depends_on:
+#      - consul-registrator
 
 networks:
   elastic_grid:

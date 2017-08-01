@@ -1,0 +1,30 @@
+actions:
+  1:
+    action: close
+    description: close indices
+    options:
+      delete_aliases: False
+      timeout_override:
+      continue_if_exception: True
+      disable_action: False
+    filters:
+    -
+      filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: hours
+      unit_count: 2
+      exclude:
+  2:
+    action: delete_indices
+    description: delete indices
+    filters:
+    -
+      filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: hours
+      unit_count: 3
+      exclude:
