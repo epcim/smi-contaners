@@ -11,3 +11,6 @@ actions:
       unit: days 
       unit_count: 1
       exclude:
+    - 
+      filtertype: kibana
+      exclude: True 
