@@ -22,9 +22,11 @@ services:
       - DOCKER_FLUENTD_REPLICAS=1
       #- FLUENTD_OPT=
       #- FLUENTD_UID=
+    depends_on:
+      - elastic_proxy
     env_file:
-     # override ENV varibles used in this script in ./*.env.
-     - poc.env
+      # override ENV varibles used in this script in ./*.env.
+      - poc.env
     volumes:
       - ${PWD}/fluentd/etc:/fluentd/etc #:ro
       - ${DOCKER_FLUENTD_LOG_PAHT:-/fluentd/log}:/fluentd/log
@@ -153,6 +155,10 @@ services:
   elastic_proxy:
     image: nginx
     #environment:
+    depends_on:
+    - elasticsearch_node1
+    - elasticsearch_node2
+    - elasticsearch_node3
     volumes:
       - ${PWD}/elastic_proxy/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -169,24 +175,24 @@ services:
       - default_public
 
   curator:
-    image: bobrik/curator
+    image: curator_cis 
     #env_file:
     # - ./poc.env 
     depends_on:
       - fluent
-      - elasticsearch
+      - elastic_proxy
     environment:
-      - action_file=${PWD}/curator/action.yml
+      - INTERVAL_IN_HOURS=1
     volumes:
-      - ${PWD}/curator/curator.yml:/curator.yml
-      - ${PWD}/curator/action.yml:/action.yml    
+      - ${PWD}/curator/curator.yml:/config.yml:ro
+      - ${PWD}/curator/action.yml:/action.yml:ro
     deploy:
       replicas: 1
-    #logging:
-    #  driver: fluentd
-    #  options:
-    #    fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
-    #    tag: docker.{{.ID}}
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: ${DOCKER_SWARM_HOST01:-mon01}:24224
+        tag: docker.{{.ID}}
     networks:
        - elastic_grid
 
@@ -194,7 +200,7 @@ services:
     image: docker.elastic.co/kibana/kibana:5.5.0
     depends_on:
       - fluentd
-      - elasticsearch
+      - elastic_proxy
     env_file:
       - poc.env
     deploy:
@@ -286,7 +292,7 @@ services:
 
   consul:
     image: "consul:0.8.0"
-    container_name: consul
+    #container_name: consul
     ##image:  gliderlabs/consul-server:latest
     environment:
       - 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}'
@@ -319,8 +325,8 @@ services:
     #command: "-ip ${MYHOST} consul://${MYHOST}:8500"
     #entrypoint: /bin/registrator -cleanup -resync 30 -internal consul://${DOCKER_SWARM_HOST01:-mon01}:8500
     entrypoint: /bin/registrator -cleanup -resync 30 consul://${DOCKER_SWARM_HOST01:-mon01}:8500
-    links:
-      - consul:consul
+    #links:
+    #  - consul:consul
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock
     depends_on:
