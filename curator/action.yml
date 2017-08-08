@@ -1,10 +1,27 @@
 actions:
   1:
-    action: delete_logs
+    action: close
+    description: "close logs"
+    options:
+      ignore_empty_list: True
+      disable_action: False 
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: logstash
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 1
+      exclude:
+  2:
+    action: delete_indices 
     description: "delete logs"
     options:
       ignore_empty_list: True
-      disable_action: True
+      disable_action: False 
     filters:
     - filtertype: pattern
       kind: prefix
@@ -14,20 +31,33 @@ actions:
       direction: older
       timestring: '%Y.%m.%d'
       unit: days 
-      unit_count: 1
+      unit_count: 2
+      exclude:
+    - filtertype: opened
+      exclude: True
+  3:
+    action: close
+    description: "close other"
+    options:
+      ignore_empty_list: True
+      disable_action: False
+    filters:
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 2
       exclude:
     - filtertype: kibana
       exclude: True
-  2:
-    action: delete_elastic_monitor
-    description: "delete mornitor"
+  4:
+    action: delete_indices
+    description: "delete monitor logs"
     options:
       ignore_empty_list: True
-      disable_action: True
+      disable_action: False 
     filters:
-    - filtertype: pattern
-      kind: prefix
-      value: .monitoring-es
     - filtertype: age
       source: name
       direction: older
@@ -35,5 +65,5 @@ actions:
       unit: days
       unit_count: 3
       exclude:
-    - filtertype: kibana
-      exclude: True 
+    - filtertype: opened
+      exclude: True
